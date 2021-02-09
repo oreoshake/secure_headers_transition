@@ -35,13 +35,12 @@ class FoosController < ApplicationController
   end
 
   def append_content_security_policy_directives(directives)
+    current_policy = current_content_security_policy
     directives.each do |directive, source_values|
-      config = request.content_security_policy.send(directive)
+      config = current_policy.send(directive)
       if config.nil?
         config = []
-        default_src = request.content_security_policy.default_src
-        config = default_src.dup
-        request.content_security_policy.default_src(*default_src)
+        config = current_policy.default_src
       end
       config = [] if config == %w('none')
       request.content_security_policy.send(directive, *(config + source_values))
