@@ -1,9 +1,47 @@
 class FoosController < ApplicationController
   before_action :set_foo, only: %i[ show edit update destroy ]
 
+  content_security_policy do |config, foo|
+    config.connect_src ->() do
+      # look at me! I'm in an "action" context here.
+      # so I can see cookies, the request, flipper, etc.
+      SecureRandom.hex(16) + ".com" if params[:action] == "index"
+    end
+  end
+
   # GET /foos or /foos.json
   def index
+    # media source was not defined, so it needs to inherit what was in default-src
+    append_content_security_policy_directives(media_src: %w(foo.com))
+
+    # worker source is set to none, so we need to override that value
+    append_content_security_policy_directives(worker_src: %w(foo.com))
+
+    # results in
+    # font-src 'self' https: data:;
+    # img-src 'self' https: data:;
+    # object-src 'none';
+    # script-src 'self' https:;
+    # style-src 'self' https:;
+    # connect-src e84084ace36797dfa21d0ad79c9fcde8.com; <- set in the content_security_policy block above
+    # default-src 'self' https:;
+    # media-src 'self' https: foo.com; <- inherited default src
+    # worker-src foo.com <- overrode none
     @foos = Foo.all
+  end
+
+  def append_content_security_policy_directives(directives)
+    directives.each do |directive, source_values|
+      config = content_security_policy?.send(directive)
+      if config.nil?
+        config = []
+        default_src = content_security_policy?.default_src
+        config = default_src.dup
+        content_security_policy?.default_src(*default_src)
+      end
+      config = [] if config == %w('none')
+      content_security_policy?.send(directive, *(config + source_values))
+    end
   end
 
   # GET /foos/1 or /foos/1.json
