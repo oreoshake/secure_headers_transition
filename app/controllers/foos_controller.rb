@@ -3,6 +3,8 @@ class FoosController < ApplicationController
 
   content_security_policy do |config, foo|
     config.connect_src ->() do
+      # This analog would replace the `add_csp_exceptions` pattern.
+
       # look at me! I'm in an "action" context here.
       # so I can see cookies, the request, flipper, etc.
       SecureRandom.hex(16) + ".com" if params[:action] == "index"
